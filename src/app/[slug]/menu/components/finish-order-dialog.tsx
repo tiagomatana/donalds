@@ -2,12 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ConsumptionMethod } from "@prisma/client";
+import { loadStripe } from "@stripe/stripe-js";
 import { Loader2Icon } from "lucide-react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useContext, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { PatternFormat } from "react-number-format";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,10 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { createOrder } from "../actions/create-order";
+import { createStripeCheckout } from "../actions/create-stripe-checkout";
 import { CartContext } from "../contexts/cart";
 import { isValidCpf } from "../helpers/cpf";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   name: z.string().trim().min(1, {
@@ -59,9 +61,9 @@ interface FinishOrderDialogProps {
 
 const FinishOrderDialog = ({ open, onOpenChange }: FinishOrderDialogProps) => {
   const { slug } = useParams<{ slug: string }>();
-  const { products } = useContext(CartContext);
+  const { products, toggleCart, clearCart } = useContext(CartContext);
   const searchParams = useSearchParams();
-  const [isPending, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition();
   const form = useForm<FormSchema>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -76,7 +78,7 @@ const FinishOrderDialog = ({ open, onOpenChange }: FinishOrderDialogProps) => {
         "consumptionMethod",
       ) as ConsumptionMethod;
       startTransition(async () => {
-        await createOrder({
+        const order = await createOrder({
           consumptionMethod,
           customerCpf: data.cpf,
           customerName: data.name,
@@ -84,10 +86,23 @@ const FinishOrderDialog = ({ open, onOpenChange }: FinishOrderDialogProps) => {
           slug,
         });
         onOpenChange(false);
+        clearCart();
+        toggleCart();
         toast.success("Pedido finalizado com sucesso!");
-      })
-     
-  
+        // const { sessionId } = await createStripeCheckout({
+        //   products,
+        //   slug,
+        //   consumptionMethod,
+        //   orderId: order.id,
+        // });
+        // const stripe = await loadStripe(
+        //   process.env.NEXT_PUBLIC_STRIPE_PUBLIC_KEY!,
+        // );
+        // if (!stripe) return;
+        // await stripe.redirectToCheckout({
+        //   sessionId,
+        // });
+      });
     } catch (error) {
       console.error(error);
     }
@@ -144,7 +159,7 @@ const FinishOrderDialog = ({ open, onOpenChange }: FinishOrderDialogProps) => {
                   className="rounded-full"
                   disabled={isPending}
                 >
-                  {isPending && <Loader2Icon className="animate-spin"/>}
+                  {isPending && <Loader2Icon className="animate-spin" />}
                   Finalizar
                 </Button>
                 <DrawerClose asChild>
