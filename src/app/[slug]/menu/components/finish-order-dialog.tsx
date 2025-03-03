@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ConsumptionMethod } from "@prisma/client";
 import { loadStripe } from "@stripe/stripe-js";
 import { Loader2Icon } from "lucide-react";
-import { useParams, useSearchParams } from "next/navigation";
+import { redirect, useParams, useSearchParams } from "next/navigation";
 import { useContext, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { PatternFormat } from "react-number-format";
@@ -36,6 +36,7 @@ import { createStripeCheckout } from "../actions/create-stripe-checkout";
 import { CartContext } from "../contexts/cart";
 import { isValidCpf } from "../helpers/cpf";
 import { toast } from "sonner";
+import { revalidatePath } from "next/cache";
 
 const formSchema = z.object({
   name: z.string().trim().min(1, {
@@ -88,7 +89,9 @@ const FinishOrderDialog = ({ open, onOpenChange }: FinishOrderDialogProps) => {
         onOpenChange(false);
         clearCart();
         toggleCart();
+
         toast.success("Pedido finalizado com sucesso!");
+        redirect('/fsw-donalds')
         // const { sessionId } = await createStripeCheckout({
         //   products,
         //   slug,
